@@ -1,0 +1,24 @@
+#!/usr/bin/env ruby
+
+require_relative "../lib/buildkite-cache"
+
+configuration = ENV.fetch("BUILDKITE_PLUGIN_DEVOPS_BUILDKITE_CACHE_CONFIGURATION")
+cache_keys_and_paths = BuildkiteCache.parse_configuration(configuration)
+
+cache_keys_and_paths.each do |key, path|
+  unless Dir.exist? path
+    puts "Path '#{path}' doesn't exist. Skipping cache store."
+    next
+  end
+
+  ssh_url = ENV.fetch("BUILDKITE_CACHE_URL")
+  existing_cache_check = `ssh #{ssh_url} "find #{key}"`
+
+  if existing_cache_check["No such file"]
+    puts "Storing cache from '#{path}' in #{key}.tar"
+    command ="tar c #{path} | ssh #{ssh_url} 'cat > ~/#{key}.tar'"
+    puts `command`
+  else
+    puts "Cache already exists. Skipping cache store."
+  end
+end
